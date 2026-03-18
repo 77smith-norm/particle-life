@@ -26,62 +26,71 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 60px;
-            background: rgba(0,0,0,0.5);
+            /* Height auto to accommodate two rows */
+            height: auto;
+            min-height: 80px;
+            background: rgba(0,0,0,0.6);
             display: flex;
-            align-items: center;
-            justify-content: space-around;
-            padding: 5px 0;
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-top: env(safe-area-inset-top);
+            flex-direction: column;
+            padding: 5px 10px;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom));
             box-sizing: border-box;
             z-index: 10;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        /* Legend Row */
+        #ui-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 0;
         }
         #legend {
             display: flex;
-            gap: 10px;
-        }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 16px;
-            color: white;
+            gap: 8px;
         }
         .color-box {
-            width: 20px;
-            height: 20px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
         }
         #fps {
-            font-size: 16px;
-            color: white;
-            min-width: 60px;
-            text-align: center;
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
         }
-        button {
-            background: rgba(255,255,255,0.2);
+        
+        /* Button Row */
+        #ui-buttons {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 4px;
+        }
+        #ui-buttons button {
+            min-width: 44px;
+            min-height: 44px;
+            padding: 6px 8px;
+            font-size: 20px;
+            background: rgba(255,255,255,0.15);
             border: none;
             color: white;
-            padding: 10px 15px;
-            font-size: 16px;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
-            min-width: 60px;
-            min-height: 60px;
         }
-        button:hover {
-            background: rgba(255,255,255,0.3);
+        #ui-buttons button:hover {
+            background: rgba(255,255,255,0.25);
         }
-        button:active {
+        #ui-buttons button:active {
             transform: scale(0.95);
-            background: rgba(255,255,255,0.4);
+            background: rgba(255,255,255,0.35);
         }
         
         /* Settings panel styles */
         #settings-panel {
             position: absolute;
-            bottom: 60px;
+            bottom: auto; /* Position from top instead */
+            top: 0;
             left: 0;
             right: 0;
             background: rgba(0,0,0,0.7);
@@ -92,6 +101,9 @@
             display: none;
             flex-direction: column;
             gap: 10px;
+            max-height: 60vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
         #settings-panel.active {
             display: flex;
@@ -127,15 +139,17 @@
 <body>
     <canvas id="canvas"></canvas>
     <div id="ui">
-        <div id="legend"></div>
-        <div id="fps">FPS: 0</div>
-        <div>
-            <button id="randomize">Randomize Rules</button>
-            <button id="reset">New Simulation</button>
-            <button id="settings-toggle">Settings</button>
-            <button id="save-preset">Save</button>
-            <button id="load-preset" disabled>Load</button>
-            <button id="fullscreen-btn">⛶</button>
+        <div id="ui-top">
+            <div id="legend"></div>
+            <div id="fps">FPS: 0</div>
+        </div>
+        <div id="ui-buttons">
+            <button id="randomize" title="Randomize Rules">🎲</button>
+            <button id="settings-toggle" title="Settings">⚙️</button>
+            <button id="save-preset" title="Save">💾</button>
+            <button id="load-preset" title="Load" disabled>📂</button>
+            <button id="reset" title="New Simulation">🔄</button>
+            <button id="fullscreen-btn" title="Fullscreen">⛶</button>
         </div>
     </div>
     
@@ -251,15 +265,15 @@
             updateLegend();
         }
         
-        // Update legend with current matrix diagonal (or just show colors)
+        // Update legend with just colored circles (no text labels)
         function updateLegend() {
             const legendDiv = document.getElementById('legend');
             legendDiv.innerHTML = '';
             colors.forEach((color, index) => {
-                const item = document.createElement('div');
-                item.className = 'legend-item';
-                item.innerHTML = `<div class="color-box" style="background-color: ${color}"></div><span>Species ${index}</span>`;
-                legendDiv.appendChild(item);
+                const colorBox = document.createElement('div');
+                colorBox.className = 'color-box';
+                colorBox.style.backgroundColor = color;
+                legendDiv.appendChild(colorBox);
             });
         }
         
@@ -455,7 +469,16 @@
         
         // Settings panel toggle
         document.getElementById('settings-toggle').addEventListener('click', function() {
-            document.getElementById('settings-panel').classList.toggle('active');
+            const settingsPanel = document.getElementById('settings-panel');
+            const uiBar = document.getElementById('ui');
+            settingsPanel.classList.toggle('active');
+            
+            // Position settings panel above UI bar when active
+            if (settingsPanel.classList.contains('active')) {
+                settingsPanel.style.bottom = `${uiBar.offsetHeight}px`;
+            } else {
+                settingsPanel.style.bottom = 'auto';
+            }
         });
         
         // Parameter sliders
