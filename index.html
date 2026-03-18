@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a0a0f">
+    <title>Particle Life</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0a0a0f;
+        }
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #ui {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 5px 0;
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-top: env(safe-area-inset-top);
+            box-sizing: border-box;
+            z-index: 10;
+        }
+        #legend {
+            display: flex;
+            gap: 10px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 16px;
+            color: white;
+        }
+        .color-box {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+        #fps {
+            font-size: 16px;
+            color: white;
+            min-width: 60px;
+            text-align: center;
+        }
+        button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            min-width: 60px;
+            min-height: 60px;
+        }
+        button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        button:active {
+            transform: scale(0.95);
+            background: rgba(255,255,255,0.4);
+        }
+        
+        /* Settings panel styles */
+        #settings-panel {
+            position: absolute;
+            bottom: 60px;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            box-sizing: border-box;
+            z-index: 10;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #settings-panel.active {
+            display: flex;
+        }
+        .settings-section {
+            margin-bottom: 15px;
+        }
+        .settings-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .slider-label {
+            min-width: 80px;
+        }
+        .slider-value {
+            min-width: 50px;
+            text-align: center;
+            font-family: monospace;
+        }
+        input[type="range"] {
+            flex: 1;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="ui">
+        <div id="legend"></div>
+        <div id="fps">FPS: 0</div>
+        <div>
+            <button id="randomize">Randomize Rules</button>
+            <button id="reset">New Simulation</button>
+            <button id="settings-toggle">Settings</button>
+            <button id="save-preset">Save</button>
+            <button id="load-preset" disabled>Load</button>
+            <button id="fullscreen-btn">⛶</button>
+        </div>
+    </div>
+    
+    <!-- Settings Panel -->
+    <div id="settings-panel">
+        <div class="settings-section">
+            <h3>Parameters</h3>
+            <div class="slider-container">
+                <div class="slider-label">r_max:</div>
+                <input type="range" id="rMaxSlider" min="40" max="200" value="120">
+                <div class="slider-value" id="rMaxValue">120</div>
+            </div>
+            <div class="slider-container">
+                <div class="slider-label">r_min:</div>
+                <input type="range" id="rMinSlider" min="5" max="40" value="20">
+                <div class="slider-value" id="rMinValue">20</div>
+            </div>
+            <div class="slider-container">
+                <div class="slider-label">Velocity Dampening:</div>
+                <input type="range" id="dampeningSlider" min="70" max="95" value="85" step="1">
+                <div class="slider-value" id="dampeningValue">0.85</div>
+            </div>
+            <div class="slider-container">
+                <div class="slider-label">Force Scale:</div>
+                <input type="range" id="forceScaleSlider" min="10" max="200" value="50" step="1">
+                <div class="slider-value" id="forceScaleValue">0.5</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // === Configuration ===
+        const speciesCount = 6;
+        const particlesPerSpecies = 80;
+        let rMax = 120;
+        let rMin = 20;
+        let velocityDampening = 0.85;
+        let forceScale = 0.5;
+        
+        // Particle colors for each species
+        const colors = [
+            '#ff0000', // red
+            '#00ffff', // cyan
+            '#ffff00', // yellow
+            '#ff00ff', // magenta
+            '#00ff00', // lime
+            '#ffa500'  // orange
+        ];
+        
+        // Canvas and context
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Resize canvas to fit window
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', resizeCanvas);
+        resizeCanvas();
+        
+        // Particle class
+        class Particle {
+            constructor(x, y, species) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.species = species;
+            }
+        }
+        
+        // Particles array
+        let particles = [];
+        
+        // Attraction matrix (speciesCount x speciesCount)
+        let matrix = [];
+        
+        // Spatial hash grid (reused each frame)
+        let grid = {};
+        
+        /**
+         * Initialize simulation with random particles and matrix
+         */
+        function init() {
+            // Create particles
+            particles = [];
+            for (let s = 0; s < speciesCount; s++) {
+                for (let i = 0; i < particlesPerSpecies; i++) {
+                    const x = Math.random() * canvas.width;
+                    const y = Math.random() * canvas.height;
+                    particles.push(new Particle(x, y, s));
+                }
+            }
+            
+            // Initialize random attraction matrix
+            randomizeMatrix();
+        }
+        
+        /**
+         * Randomize attraction matrix with values between -1 and 1
+         */
+        function randomizeMatrix() {
+            matrix = [];
+            for (let i = 0; i < speciesCount; i++) {
+                const row = [];
+                for (let j = 0; j < speciesCount; j++) {
+                    // Random value between -1 and 1
+                    row.push(Math.random() * 2 - 1);
+                }
+                matrix.push(row);
+            }
+            updateLegend();
+        }
+        
+        // Update legend with current matrix diagonal (or just show colors)
+        function updateLegend() {
+            const legendDiv = document.getElementById('legend');
+            legendDiv.innerHTML = '';
+            colors.forEach((color, index) => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.innerHTML = `<div class="color-box" style="background-color: ${color}"></div><span>Species ${index}</span>`;
+                legendDiv.appendChild(item);
+            });
+        }
+        
+        /**
+         * Calculate force between two particles based on attraction matrix and distance
+         * @param {Particle} p1 - First particle
+         * @param {Particle} p2 - Second particle
+         * @returns {{fx: number, fy: number}} Force vector components
+         */
+        function calculateForce(p1, p2) {
+            let dx = p2.x - p1.x;
+            let dy = p2.y - p1.y;
+            
+            // Wrap-around distance
+            const wrappedDx = ((dx + canvas.width/2) % canvas.width) - canvas.width/2;
+            const wrappedDy = ((dy + canvas.height/2) % canvas.height) - canvas.height/2;
+            dx = wrappedDx;
+            dy = wrappedDy;
+            
+            const distance = Math.sqrt(dx*dx + dy*dy);
+            
+            if (distance === 0) return { fx: 0, fy: 0 };
+            
+            let force = 0;
+            if (distance < rMin) {
+                // Always repel at close range
+                force = -1;
+            } else if (distance < rMax) {
+                // Apply matrix force with smooth falloff
+                const falloff = (rMax - distance) / (rMax - rMin);
+                force = matrix[p1.species][p2.species] * falloff;
+            }
+            // Else force remains 0
+            
+            const fx = force * dx / distance * forceScale;
+            const fy = force * dy / distance * forceScale;
+            return { fx, fy };
+        }
+        
+        /**
+         * Update particle positions and velocities using spatial hashing for neighbor lookup
+         */
+        function update() {
+            // Reset forces
+            particles.forEach(p => {
+                p.fx = 0;
+                p.fy = 0;
+            });
+            
+            // Spatial hashing for O(n) neighbor lookup
+            const cellSize = rMax;
+            
+            // Clear grid instead of creating new object
+            for (const key in grid) delete grid[key];
+            
+            // Build spatial hash grid
+            particles.forEach((p, index) => {
+                const cellX = (p.x / cellSize) | 0;
+                const cellY = (p.y / cellSize) | 0;
+                const key = `${cellX},${cellY}`;
+                if (!grid[key]) grid[key] = [];
+                grid[key].push(index);
+            });
+            
+            // Calculate forces using spatial hash with wrap-around
+            particles.forEach((p, i) => {
+                const cellX = (p.x / cellSize) | 0;
+                const cellY = (p.y / cellSize) | 0;
+                
+                // Check this cell and all 8 neighbors
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        let neighborCellX = cellX + dx;
+                        let neighborCellY = cellY + dy;
+                        
+                        // Handle wrap-around for spatial hash
+                        // If particle is within rMax of edge, also check wrapped cells
+                        const wrapOffsetX = (p.x < rMax) ? -Math.ceil(canvas.width / cellSize) : 
+                                          (p.x > canvas.width - rMax) ? Math.ceil(canvas.width / cellSize) : 0;
+                        const wrapOffsetY = (p.y < rMax) ? -Math.ceil(canvas.height / cellSize) : 
+                                          (p.y > canvas.height - rMax) ? Math.ceil(canvas.height / cellSize) : 0;
+                        
+                        // Check normal neighbor
+                        const key = `${neighborCellX},${neighborCellY}`;
+                        if (grid[key]) {
+                            grid[key].forEach(j => {
+                                if (i !== j) { // Don't check particle against itself
+                                    const force = calculateForce(p, particles[j]);
+                                    p.fx += force.fx;
+                                    p.fy += force.fy;
+                                }
+                            });
+                        }
+                        
+                        // Check wrapped neighbors if needed
+                        if (wrapOffsetX !== 0 || wrapOffsetY !== 0) {
+                            const wrappedCellX = neighborCellX + wrapOffsetX;
+                            const wrappedCellY = neighborCellY + wrapOffsetY;
+                            const wrappedKey = `${wrappedCellX},${wrappedCellY}`;
+                            if (grid[wrappedKey]) {
+                                grid[wrappedKey].forEach(j => {
+                                    if (i !== j) { // Don't check particle against itself
+                                        const force = calculateForce(p, particles[j]);
+                                        p.fx += force.fx;
+                                        p.fy += force.fy;
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Update velocities and positions
+            particles.forEach(p => {
+                // Apply velocity dampening
+                p.vx = (p.vx + p.fx) * velocityDampening;
+                p.vy = (p.vy + p.fy) * velocityDampening;
+                
+                // Update position
+                p.x += p.vx;
+                p.y += p.vy;
+                
+                // Wrap-around boundaries
+                if (p.x < 0) p.x += canvas.width;
+                if (p.x >= canvas.width) p.x -= canvas.width;
+                if (p.y < 0) p.y += canvas.height;
+                if (p.y >= canvas.height) p.y -= canvas.height;
+            });
+        }
+        
+        /**
+         * Render particles to canvas with trailing effect
+         */
+        function render() {
+            // Clear with trailing effect
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+             // Draw particles
+             particles.forEach(p => {
+                 ctx.beginPath();
+                 ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+                 ctx.fillStyle = colors[p.species];
+                 ctx.fill();
+             });
+        }
+        
+        /**
+         * Main animation loop
+         * @param {number} timestamp - Timestamp from requestAnimationFrame
+         */
+        let lastTime = 0;
+        let fps = 0;
+        function loop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const delta = timestamp - lastTime;
+            lastTime = timestamp;
+            
+        // Calculate FPS
+        fps = Math.round(1000 / delta);
+        document.getElementById('fps').textContent = `FPS: ${fps}`;
+        
+        update();
+        render();
+        
+        requestAnimationFrame(loop);
+        }
+        
+        // Event listeners
+        document.getElementById('randomize').addEventListener('click', randomizeMatrix);
+        document.getElementById('reset').addEventListener('click', init);
+        
+        // Touch handling for canvas
+        let lastTap = 0;
+        canvas.addEventListener('touchstart', function(e) {
+            // Prevent scrolling
+            e.preventDefault();
+            
+            const now = Date.now();
+            const timeSinceLastTap = now - lastTap;
+            
+            if (timeSinceLastTap < 300) {
+                // Double tap
+                init();
+                lastTap = 0;
+            } else {
+                // Single tap
+                randomizeMatrix();
+                lastTap = now;
+            }
+        }, { passive: false });
+        
+        // Settings panel toggle
+        document.getElementById('settings-toggle').addEventListener('click', function() {
+            document.getElementById('settings-panel').classList.toggle('active');
+        });
+        
+        // Parameter sliders
+        const rMaxSlider = document.getElementById('rMaxSlider');
+        const rMaxValue = document.getElementById('rMaxValue');
+        rMaxSlider.addEventListener('input', function() {
+            rMax = parseInt(this.value);
+            // Ensure rMax is always >= rMin + 10
+            if (rMax < rMin + 10) {
+                rMax = rMin + 10;
+                this.value = rMax;
+            }
+            rMaxValue.textContent = rMax;
+        });
+        
+        const rMinSlider = document.getElementById('rMinSlider');
+        const rMinValue = document.getElementById('rMinValue');
+        rMinSlider.addEventListener('input', function() {
+            rMin = parseInt(this.value);
+            // Ensure rMax is always >= rMin + 10
+            if (rMax < rMin + 10) {
+                rMax = rMin + 10;
+                rMaxSlider.value = rMax;
+                rMaxValue.textContent = rMax;
+            }
+            rMinValue.textContent = rMin;
+        });
+        
+        const dampeningSlider = document.getElementById('dampeningSlider');
+        const dampeningValue = document.getElementById('dampeningValue');
+        dampeningSlider.addEventListener('input', function() {
+            velocityDampening = parseInt(this.value) / 100;
+            dampeningValue.textContent = velocityDampening.toFixed(2);
+        });
+        
+        const forceScaleSlider = document.getElementById('forceScaleSlider');
+        const forceScaleValue = document.getElementById('forceScaleValue');
+        forceScaleSlider.addEventListener('input', function() {
+            forceScale = parseInt(this.value) / 100;
+            forceScaleValue.textContent = forceScale.toFixed(2);
+        });
+        
+        // Save/Load presets
+        const savePresetBtn = document.getElementById('save-preset');
+        const loadPresetBtn = document.getElementById('load-preset');
+        
+        savePresetBtn.addEventListener('click', function() {
+            const preset = {
+                matrix: matrix,
+                rMax: rMax,
+                rMin: rMin,
+                velocityDampening: velocityDampening,
+                forceScale: forceScale
+            };
+            localStorage.setItem('particlelife-preset', JSON.stringify(preset));
+            loadPresetBtn.disabled = false;
+            // Visual feedback
+            const originalText = savePresetBtn.textContent;
+            savePresetBtn.textContent = 'Saved!';
+            setTimeout(() => {
+                savePresetBtn.textContent = originalText;
+            }, 1000);
+        });
+        
+        loadPresetBtn.addEventListener('click', function() {
+            const saved = localStorage.getItem('particlelife-preset');
+            if (saved) {
+                const preset = JSON.parse(saved);
+                matrix = preset.matrix;
+                rMax = preset.rMax;
+                rMin = preset.rMin;
+                velocityDampening = preset.velocityDampening;
+                forceScale = preset.forceScale;
+                
+                // Update slider positions to match loaded values
+                rMaxSlider.value = rMax;
+                rMaxValue.textContent = rMax;
+                rMinSlider.value = rMin;
+                rMinValue.textContent = rMin;
+                dampeningSlider.value = Math.round(velocityDampening * 100);
+                dampeningValue.textContent = velocityDampening.toFixed(2);
+                forceScaleSlider.value = Math.round(forceScale * 100);
+                forceScaleValue.textContent = forceScale.toFixed(2);
+                
+                updateLegend();
+                // Visual feedback
+                const originalText = loadPresetBtn.textContent;
+                loadPresetBtn.textContent = 'Loaded!';
+                setTimeout(() => {
+                    loadPresetBtn.textContent = originalText;
+                }, 1000);
+            }
+        });
+        
+        // Check for saved preset on load
+        if (localStorage.getItem('particlelife-preset')) {
+            loadPresetBtn.disabled = false;
+        }
+        
+        // Fullscreen button
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        fullscreenBtn.addEventListener('click', function() {
+            if (!document.fullscreenElement) {
+                // Try to request fullscreen
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) { // Safari
+                    document.documentElement.webkitRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) { // Safari
+                    document.webkitExitFullscreen();
+                }
+            }
+        });
+        
+        // Hide UI when in fullscreen (except for a small button to show it)
+        document.addEventListener('fullscreenchange', function() {
+            const ui = document.getElementById('ui');
+            if (document.fullscreenElement) {
+                ui.style.opacity = '0';
+                // Show a small button to restore UI
+                if (!document.getElementById('show-ui-btn')) {
+                    const showBtn = document.createElement('button');
+                    showBtn.id = 'show-ui-btn';
+                    showBtn.textContent = '☰';
+                    showBtn.style.position = 'fixed';
+                    showBtn.style.top = '10px';
+                    showBtn.style.left = '10px';
+                    showBtn.style.background = 'rgba(0,0,0,0.5)';
+                    showBtn.style.color = 'white';
+                    showBtn.style.border = 'none';
+                    showBtn.style.borderRadius = '5px';
+                    showBtn.style.padding = '10px';
+                    showBtn.style.fontSize = '24px';
+                    showBtn.style.zIndex = '1000';
+                    showBtn.addEventListener('click', function() {
+                        ui.style.opacity = '1';
+                        this.remove();
+                    });
+                    document.body.appendChild(showBtn);
+                }
+            } else {
+                ui.style.opacity = '1';
+                // Remove the show UI button if it exists
+                const showBtn = document.getElementById('show-ui-btn');
+                if (showBtn) {
+                    showBtn.remove();
+                }
+            }
+        });
+        
+        // Also handle webkitfullscreenchange for Safari
+        document.addEventListener('webkitfullscreenchange', function() {
+            const ui = document.getElementById('ui');
+            if (document.webkitIsFullScreen) {
+                ui.style.opacity = '0';
+            } else {
+                ui.style.opacity = '1';
+            }
+        });
+        
+        // Start simulation
+        init();
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>
