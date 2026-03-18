@@ -54,12 +54,28 @@
             width: 14px;
             height: 14px;
             border-radius: 50%;
+            transition: opacity 0.2s, transform 0.15s;
+        }
+        .color-box.species-off {
+            opacity: 0.2;
         }
         #fps {
             font-size: 12px;
             color: rgba(255,255,255,0.6);
         }
         
+        /* Legend label */
+        #legend-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .legend-label {
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
         /* Button Row */
         #ui-buttons {
             display: flex;
@@ -70,13 +86,18 @@
         #ui-buttons button {
             min-width: 44px;
             min-height: 44px;
-            padding: 6px 8px;
-            font-size: 20px;
+            padding: 4px 6px;
+            font-size: 18px;
             background: rgba(255,255,255,0.15);
             border: none;
             color: white;
             border-radius: 8px;
             cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1px;
         }
         #ui-buttons button:hover {
             background: rgba(255,255,255,0.25);
@@ -84,6 +105,13 @@
         #ui-buttons button:active {
             transform: scale(0.95);
             background: rgba(255,255,255,0.35);
+        }
+        .btn-icon { font-size: 18px; line-height: 1; }
+        .btn-label { font-size: 9px; opacity: 0.7; line-height: 1; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        /* Hide fullscreen button on iOS */
+        @supports (-webkit-touch-callout: none) {
+            #fullscreen-btn { display: none; }
         }
         
         /* Settings panel styles */
@@ -140,16 +168,37 @@
     <canvas id="canvas"></canvas>
     <div id="ui">
         <div id="ui-top">
-            <div id="legend"></div>
+            <div id="legend-wrap">
+                <span class="legend-label">Species</span>
+                <div id="legend"></div>
+            </div>
             <div id="fps">FPS: 0</div>
         </div>
         <div id="ui-buttons">
-            <button id="randomize" title="Randomize Rules">🎲</button>
-            <button id="settings-toggle" title="Settings">⚙️</button>
-            <button id="save-preset" title="Save">💾</button>
-            <button id="load-preset" title="Load" disabled>📂</button>
-            <button id="reset" title="New Simulation">🔄</button>
-            <button id="fullscreen-btn" title="Fullscreen">⛶</button>
+            <button id="randomize" title="Randomize Rules">
+              <span class="btn-icon">🎲</span>
+              <span class="btn-label">Rules</span>
+            </button>
+            <button id="settings-toggle" title="Settings">
+              <span class="btn-icon">⚙️</span>
+              <span class="btn-label">Settings</span>
+            </button>
+            <button id="save-preset" title="Save">
+              <span class="btn-icon">💾</span>
+              <span class="btn-label">Save</span>
+            </button>
+            <button id="load-preset" title="Load" disabled>
+              <span class="btn-icon">📂</span>
+              <span class="btn-label">Load</span>
+            </button>
+            <button id="reset" title="New Simulation">
+              <span class="btn-icon">🔄</span>
+              <span class="btn-label">New</span>
+            </button>
+            <button id="fullscreen-btn" title="Fullscreen">
+              <span class="btn-icon">⛶</span>
+              <span class="btn-label">Full</span>
+            </button>
         </div>
     </div>
     
@@ -197,7 +246,8 @@
             '#00ff00', // lime
             '#ffa500'  // orange
         ];
-        
+        const speciesEnabled = [true, true, true, true, true, true];
+
         // Canvas and context
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -271,8 +321,16 @@
             legendDiv.innerHTML = '';
             colors.forEach((color, index) => {
                 const colorBox = document.createElement('div');
-                colorBox.className = 'color-box';
+                colorBox.className = 'color-box' + (speciesEnabled[index] ? '' : ' species-off');
                 colorBox.style.backgroundColor = color;
+                colorBox.style.cursor = 'pointer';
+                colorBox.style.transition = 'opacity 0.2s, transform 0.15s';
+                colorBox.addEventListener('click', () => {
+                    speciesEnabled[index] = !speciesEnabled[index];
+                    colorBox.classList.toggle('species-off');
+                    colorBox.style.transform = 'scale(0.8)';
+                    setTimeout(() => { colorBox.style.transform = ''; }, 150);
+                });
                 legendDiv.appendChild(colorBox);
             });
         }
@@ -415,6 +473,7 @@
             
              // Draw particles
              particles.forEach(p => {
+                 if (!speciesEnabled[p.species]) return;
                  ctx.beginPath();
                  ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
                  ctx.fillStyle = colors[p.species];
@@ -427,15 +486,17 @@
          * @param {number} timestamp - Timestamp from requestAnimationFrame
          */
         let lastTime = 0;
-        let fps = 0;
+        let smoothedFps = 60;
+        const FPS_SMOOTHING = 0.92; // higher = smoother
         function loop(timestamp) {
             if (!lastTime) lastTime = timestamp;
             const delta = timestamp - lastTime;
             lastTime = timestamp;
             
-        // Calculate FPS
-        fps = Math.round(1000 / delta);
-        document.getElementById('fps').textContent = `FPS: ${fps}`;
+            // Smoothed FPS
+            const instantFps = 1000 / Math.max(delta, 1);
+            smoothedFps = smoothedFps * FPS_SMOOTHING + instantFps * (1 - FPS_SMOOTHING);
+            document.getElementById('fps').textContent = `FPS: ${Math.round(smoothedFps)}`;
         
         update();
         render();
@@ -525,23 +586,22 @@
         const savePresetBtn = document.getElementById('save-preset');
         const loadPresetBtn = document.getElementById('load-preset');
         
-        savePresetBtn.addEventListener('click', function() {
-            const preset = {
-                matrix: matrix,
-                rMax: rMax,
-                rMin: rMin,
-                velocityDampening: velocityDampening,
-                forceScale: forceScale
-            };
-            localStorage.setItem('particlelife-preset', JSON.stringify(preset));
-            loadPresetBtn.disabled = false;
-            // Visual feedback
-            const originalText = savePresetBtn.textContent;
-            savePresetBtn.textContent = 'Saved!';
-            setTimeout(() => {
-                savePresetBtn.textContent = originalText;
-            }, 1000);
-        });
+            savePresetBtn.addEventListener('click', function() {
+                const preset = {
+                    matrix: matrix,
+                    rMax: rMax,
+                    rMin: rMin,
+                    velocityDampening: velocityDampening,
+                    forceScale: forceScale
+                };
+                localStorage.setItem('particlelife-preset', JSON.stringify(preset));
+                loadPresetBtn.disabled = false;
+                // Visual feedback
+                const saveLabel = savePresetBtn.querySelector('.btn-label');
+                const originalLabel = saveLabel.textContent;
+                saveLabel.textContent = 'Saved!';
+                setTimeout(() => { saveLabel.textContent = originalLabel; }, 1000);
+            });
         
         loadPresetBtn.addEventListener('click', function() {
             const saved = localStorage.getItem('particlelife-preset');
@@ -565,10 +625,11 @@
                 
                 updateLegend();
                 // Visual feedback
-                const originalText = loadPresetBtn.textContent;
-                loadPresetBtn.textContent = 'Loaded!';
+                const loadLabel = loadPresetBtn.querySelector('.btn-label');
+                const originalLoadLabel = loadLabel.textContent;
+                loadLabel.textContent = 'Loaded!';
                 setTimeout(() => {
-                    loadPresetBtn.textContent = originalText;
+                    loadLabel.textContent = originalLoadLabel;
                 }, 1000);
             }
         });
