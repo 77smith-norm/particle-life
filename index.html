@@ -8,106 +8,127 @@
     <meta name="theme-color" content="#0a0a0f">
     <title>Particle Life</title>
     <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #0a0a0f;
-        }
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #0a0a0f;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
         #canvas {
             display: block;
             width: 100%;
             height: 100%;
         }
-        #ui {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            /* Height auto to accommodate two rows */
-            height: auto;
-            min-height: 80px;
-            background: rgba(0,0,0,0.6);
-            display: flex;
-            flex-direction: column;
-            padding: 5px 10px;
-            padding-bottom: calc(8px + env(safe-area-inset-bottom));
-            box-sizing: border-box;
-            z-index: 10;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-        /* Legend Row */
-        #ui-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 2px 0;
-        }
-        #legend {
-            display: flex;
-            gap: 8px;
-        }
-        .color-box {
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            transition: opacity 0.2s, transform 0.15s;
-        }
-        .color-box.species-off {
-            opacity: 0.2;
-        }
-        #fps {
-            font-size: 12px;
-            color: rgba(255,255,255,0.6);
-        }
-        
-        /* Legend label */
-        #legend-wrap {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .legend-label {
-            font-size: 10px;
-            color: rgba(255,255,255,0.5);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+#ui {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: auto;
+    min-height: 60px;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+    z-index: 10;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+/* Legend label */
+#legend-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.legend-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
         /* Button Row */
-        #ui-buttons {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            gap: 4px;
-        }
-        #ui-buttons button {
-            min-width: 44px;
-            min-height: 44px;
-            padding: 4px 6px;
-            font-size: 18px;
-            background: rgba(255,255,255,0.15);
-            border: none;
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 1px;
-        }
-        #ui-buttons button:hover {
-            background: rgba(255,255,255,0.25);
-        }
-        #ui-buttons button:active {
-            transform: scale(0.95);
-            background: rgba(255,255,255,0.35);
-        }
-        .btn-icon { font-size: 18px; line-height: 1; }
-        .btn-label { font-size: 9px; opacity: 0.7; line-height: 1; text-transform: uppercase; letter-spacing: 0.5px; }
+#ui-buttons {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 4px;
+}
+#ui-buttons button, .fan-top {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px 10px;
+    font-size: 18px;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+#ui-buttons button:hover, .fan-top:hover {
+    background: rgba(255,255,255,0.25);
+}
+#ui-buttons button:active, .fan-top:active {
+    transform: scale(0.95);
+    background: rgba(255,255,255,0.35);
+}
+.btn-icon { font-size: 18px; line-height: 1; }
+.btn-label { font-size: 10px; opacity: 0.7; line-height: 1; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+.fan-stack {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.fan-stack .fan-top {
+    min-width: 44px;
+    min-height: 44px;
+}
+.fan-stack .fan-options {
+    position: absolute;
+    bottom: 100%;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding-bottom: 4px;
+}
+.fan-stack.open .fan-options {
+    display: flex;
+}
+.fan-option {
+    min-width: 120px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.fan-option:hover, .fan-option:active {
+    background: rgba(255,255,255,0.2);
+}
+.fan-option:disabled, .fan-option.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
         
         /* Hide fullscreen button on iOS */
         @supports (-webkit-touch-callout: none) {
@@ -166,41 +187,31 @@
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    <div id="ui">
-        <div id="ui-top">
-            <div id="legend-wrap">
-                <span class="legend-label">Species</span>
-                <div id="legend"></div>
+<div id="ui">
+<div id="legend-wrap">
+        <div id="species-dots"></div>
+      </div>
+    <div id="ui-buttons">
+        <div class="fan-stack" id="life-stack">
+            <button class="fan-top" title="Life"><span class="btn-icon">🎲</span><span class="btn-label">Life</span></button>
+            <div class="fan-options">
+                <button class="fan-option" id="randomize" title="Randomize Rules"><span class="btn-icon">🎲</span> Randomize Rules</button>
+                <button class="fan-option" id="settings-toggle" title="Settings"><span class="btn-icon">⚙️</span> Settings</button>
+                <button class="fan-option" id="reset" title="New Simulation"><span class="btn-icon">🔄</span> New Simulation</button>
             </div>
-            <div id="fps">FPS: 0</div>
         </div>
-        <div id="ui-buttons">
-            <button id="randomize" title="Randomize Rules">
-              <span class="btn-icon">🎲</span>
-              <span class="btn-label">Rules</span>
-            </button>
-            <button id="settings-toggle" title="Settings">
-              <span class="btn-icon">⚙️</span>
-              <span class="btn-label">Settings</span>
-            </button>
-            <button id="save-preset" title="Save">
-              <span class="btn-icon">💾</span>
-              <span class="btn-label">Save</span>
-            </button>
-            <button id="load-preset" title="Load" disabled>
-              <span class="btn-icon">📂</span>
-              <span class="btn-label">Load</span>
-            </button>
-            <button id="reset" title="New Simulation">
-              <span class="btn-icon">🔄</span>
-              <span class="btn-label">New</span>
-            </button>
-            <button id="fullscreen-btn" title="Fullscreen">
-              <span class="btn-icon">⛶</span>
-              <span class="btn-label">Full</span>
-            </button>
+        
+        <div class="fan-stack" id="data-stack">
+            <button class="fan-top" title="Data"><span class="btn-icon">💾</span><span class="btn-label">Data</span></button>
+            <div class="fan-options">
+                <button class="fan-option" id="save-preset" title="Save"><span class="btn-icon">💾</span> Save</button>
+                <button class="fan-option" id="load-preset" title="Load" disabled><span class="btn-icon">📂</span> Load</button>
+            </div>
         </div>
+        
+        <button id="fullscreen-btn" title="Fullscreen"><span class="btn-icon">⛶</span><span class="btn-label">Full</span></button>
     </div>
+</div>
     
     <!-- Settings Panel -->
     <div id="settings-panel">
@@ -317,24 +328,47 @@
         
         // Update legend with just colored circles (no text labels)
         function updateLegend() {
-            const legendDiv = document.getElementById('legend');
-            legendDiv.innerHTML = '';
+            const speciesDotsDiv = document.getElementById('species-dots');
+            speciesDotsDiv.innerHTML = '';
             colors.forEach((color, index) => {
-                const colorBox = document.createElement('div');
-                colorBox.className = 'color-box' + (speciesEnabled[index] ? '' : ' species-off');
-                colorBox.style.backgroundColor = color;
-                colorBox.style.cursor = 'pointer';
-                colorBox.style.transition = 'opacity 0.2s, transform 0.15s';
-                colorBox.addEventListener('click', () => {
+                const dotContainer = document.createElement('div');
+                dotContainer.style.width = '44px';
+                dotContainer.style.height = '44px';
+                dotContainer.style.display = 'flex';
+                dotContainer.style.alignItems = 'center';
+                dotContainer.style.justifyContent = 'center';
+                dotContainer.style.cursor = 'pointer';
+                dotContainer.style.position = 'relative';
+
+                const dot = document.createElement('div');
+                dot.style.width = '16px';
+                dot.style.height = '16px';
+                dot.style.borderRadius = '50%';
+                dot.style.backgroundColor = color;
+                dot.style.transition = 'opacity 0.2s, transform 0.15s';
+
+                if (!speciesEnabled[index]) {
+                    dot.style.opacity = '0.2';
+                    // Diagonal "no" line
+                    const line = document.createElement('div');
+                    line.style.position = 'absolute';
+                    line.style.width = '20px';
+                    line.style.height = '2px';
+                    line.style.backgroundColor = 'rgba(255,255,255,0.5)';
+                    line.style.transform = 'rotate(-45deg)';
+                    dotContainer.appendChild(line);
+                }
+
+                dotContainer.addEventListener('click', () => {
                     speciesEnabled[index] = !speciesEnabled[index];
-                    colorBox.classList.toggle('species-off');
-                    colorBox.style.transform = 'scale(0.8)';
-                    setTimeout(() => { colorBox.style.transform = ''; }, 150);
+                    updateLegend();
                 });
-                legendDiv.appendChild(colorBox);
+
+                dotContainer.appendChild(dot);
+                speciesDotsDiv.appendChild(dotContainer);
             });
         }
-        
+                
         /**
          * Calculate force between two particles based on attraction matrix and distance
          * @param {Particle} p1 - First particle
@@ -485,19 +519,12 @@
          * Main animation loop
          * @param {number} timestamp - Timestamp from requestAnimationFrame
          */
-        let lastTime = 0;
-        let smoothedFps = 60;
-        const FPS_SMOOTHING = 0.92; // higher = smoother
+let lastTime = 0;
         function loop(timestamp) {
             if (!lastTime) lastTime = timestamp;
             const delta = timestamp - lastTime;
             lastTime = timestamp;
-            
-            // Smoothed FPS
-            const instantFps = 1000 / Math.max(delta, 1);
-            smoothedFps = smoothedFps * FPS_SMOOTHING + instantFps * (1 - FPS_SMOOTHING);
-            document.getElementById('fps').textContent = `FPS: ${Math.round(smoothedFps)}`;
-        
+         
         update();
         render();
         
@@ -638,6 +665,38 @@
         if (localStorage.getItem('particlelife-preset')) {
             loadPresetBtn.disabled = false;
         }
+        
+        // Initialize species dots
+        updateLegend();
+        
+        // Fan stack functionality
+        document.addEventListener('click', function(e) {
+            // Close all fan stacks if clicking outside
+            const fanStacks = document.querySelectorAll('.fan-stack');
+            fanStacks.forEach(stack => {
+                if (!stack.contains(e.target)) {
+                    stack.classList.remove('open');
+                }
+            });
+        });
+        
+        // Fan stack toggle
+        document.querySelectorAll('.fan-top').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation(); // Prevent closing when clicking the button
+                const stack = this.parentElement;
+                stack.classList.toggle('open');
+            });
+        });
+        
+        // Fan option clicks
+        document.querySelectorAll('.fan-option').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.stopPropagation(); // Prevent closing when clicking the option
+                const stack = this.closest('.fan-stack');
+                stack.classList.remove('open');
+            });
+        });
         
         // Fullscreen button
         const fullscreenBtn = document.getElementById('fullscreen-btn');
