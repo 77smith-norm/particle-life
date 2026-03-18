@@ -41,17 +41,6 @@ html, body {
     -webkit-backdrop-filter: blur(10px);
 }
 /* Legend label */
-#legend-wrap {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.legend-label {
-    font-size: 10px;
-    color: rgba(255,255,255,0.5);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
         /* Button Row */
 #ui-buttons {
     display: flex;
@@ -108,7 +97,8 @@ html, body {
     display: flex;
 }
 .fan-option {
-    min-width: 120px;
+    width: 160px;
+    box-sizing: border-box;
     min-height: 44px;
     display: flex;
     align-items: center;
@@ -121,6 +111,30 @@ html, body {
     color: white;
     cursor: pointer;
     white-space: nowrap;
+}
+/* Species fan option — dot + label layout */
+.fan-option.species-option {
+    gap: 10px;
+}
+.species-dot-fan {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    position: relative;
+}
+.species-dot-fan.species-off {
+    opacity: 0.3;
+}
+.species-dot-fan.species-off::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 18px;
+    height: 2px;
+    background: rgba(255,255,255,0.6);
+    transform: translate(-50%, -50%) rotate(-45deg);
 }
 .fan-option:hover, .fan-option:active {
     background: rgba(255,255,255,0.2);
@@ -188,10 +202,11 @@ html, body {
 <body>
     <canvas id="canvas"></canvas>
 <div id="ui">
-<div id="legend-wrap">
-        <div id="species-dots"></div>
-      </div>
     <div id="ui-buttons">
+        <div class="fan-stack" id="species-stack">
+            <button class="fan-top" title="Species"><span class="btn-icon">🔴</span><span class="btn-label">Species</span></button>
+            <div class="fan-options" id="species-dots"></div>
+        </div>
         <div class="fan-stack" id="life-stack">
             <button class="fan-top" title="Life"><span class="btn-icon">🎲</span><span class="btn-label">Life</span></button>
             <div class="fan-options">
@@ -212,6 +227,7 @@ html, body {
         <button id="fullscreen-btn" title="Fullscreen"><span class="btn-icon">⛶</span><span class="btn-label">Full</span></button>
     </div>
 </div>
+
     
     <!-- Settings Panel -->
     <div id="settings-panel">
@@ -326,46 +342,36 @@ html, body {
             updateLegend();
         }
         
-        // Update legend with just colored circles (no text labels)
+        // Update species fan options
         function updateLegend() {
             const speciesDotsDiv = document.getElementById('species-dots');
             speciesDotsDiv.innerHTML = '';
+            const speciesNames = ['Red', 'Cyan', 'Yellow', 'Magenta', 'Green', 'Orange'];
             colors.forEach((color, index) => {
-                const dotContainer = document.createElement('div');
-                dotContainer.style.width = '44px';
-                dotContainer.style.height = '44px';
-                dotContainer.style.display = 'flex';
-                dotContainer.style.alignItems = 'center';
-                dotContainer.style.justifyContent = 'center';
-                dotContainer.style.cursor = 'pointer';
-                dotContainer.style.position = 'relative';
+                const btn = document.createElement('button');
+                btn.className = 'fan-option species-option' + (speciesEnabled[index] ? '' : ' species-off-btn');
+                btn.title = speciesNames[index] || `Species ${index + 1}`;
 
-                const dot = document.createElement('div');
-                dot.style.width = '16px';
-                dot.style.height = '16px';
-                dot.style.borderRadius = '50%';
+                const dot = document.createElement('span');
+                dot.className = 'species-dot-fan' + (speciesEnabled[index] ? '' : ' species-off');
                 dot.style.backgroundColor = color;
-                dot.style.transition = 'opacity 0.2s, transform 0.15s';
 
-                if (!speciesEnabled[index]) {
-                    dot.style.opacity = '0.2';
-                    // Diagonal "no" line
-                    const line = document.createElement('div');
-                    line.style.position = 'absolute';
-                    line.style.width = '20px';
-                    line.style.height = '2px';
-                    line.style.backgroundColor = 'rgba(255,255,255,0.5)';
-                    line.style.transform = 'rotate(-45deg)';
-                    dotContainer.appendChild(line);
-                }
+                const label = document.createElement('span');
+                label.textContent = speciesNames[index] || `Species ${index + 1}`;
+                label.style.opacity = speciesEnabled[index] ? '1' : '0.4';
 
-                dotContainer.addEventListener('click', () => {
+                btn.appendChild(dot);
+                btn.appendChild(label);
+
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     speciesEnabled[index] = !speciesEnabled[index];
                     updateLegend();
+                    // Keep the fan open after toggling
+                    document.getElementById('species-stack').classList.add('open');
                 });
 
-                dotContainer.appendChild(dot);
-                speciesDotsDiv.appendChild(dotContainer);
+                speciesDotsDiv.appendChild(btn);
             });
         }
                 
