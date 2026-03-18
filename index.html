@@ -144,10 +144,7 @@ html, body {
     pointer-events: none;
 }
         
-        /* Hide fullscreen button on iOS */
-        @supports (-webkit-touch-callout: none) {
-            #fullscreen-btn { display: none; }
-        }
+        /* Hide fullscreen button on iOS (JS-controlled, see runtime check below) */
         
         /* Settings panel styles */
         #settings-panel {
@@ -704,8 +701,11 @@ let lastTime = 0;
             });
         });
         
-        // Fullscreen button
+        // Hide fullscreen button if the API isn't available (iOS Safari)
         const fullscreenBtn = document.getElementById('fullscreen-btn');
+        if (!document.documentElement.requestFullscreen && !document.documentElement.webkitRequestFullscreen) {
+            fullscreenBtn.style.display = 'none';
+        }
         fullscreenBtn.addEventListener('click', function() {
             if (!document.fullscreenElement) {
                 // Try to request fullscreen
